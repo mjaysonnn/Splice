@@ -22,7 +22,7 @@ WorkloadGenerator - Request Generator for mimicking real-world web services
 
 2. Run controller 
 
-See description in compiler.py 
+See description in Controller/compiler.py 
 
 
 
