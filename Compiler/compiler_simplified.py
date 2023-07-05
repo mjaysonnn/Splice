@@ -60,7 +60,7 @@ class TargetGoalConfig:
 
 
 def return_vm_types():
-    vm_types_list = [
+    return [
         "c5.large",
         "c3.large",
         "m4.large",
@@ -68,7 +68,6 @@ def return_vm_types():
         "c5.2xlarge",
         "c3.2xlarge",
     ]
-    return vm_types_list
 
 
 @dataclass
@@ -156,12 +155,11 @@ def make_dataclass_that_contains_whole_info(original_code_script, original_filen
     original_ast: ast.Module = ast.parse(original_code_script.read())
     module_for_analysis = copy.deepcopy(original_ast)
 
-    whole_info_class = WholeASTInfoClass(
+    return WholeASTInfoClass(
         file_name=original_filename,
         original_code_module=original_ast,
         copied_module_for_analysis=module_for_analysis,
     )
-    return whole_info_class
 
 
 @dataclass
@@ -507,12 +505,10 @@ def find_user_annotation_in_code(whole_info_class: WholeASTInfoClass, ):
 
 
 def choose_functions_to_annotate(func_names_to_annotate):
-    functions_to_annotate = input(
+    return input(
         f"Choose functions you want to annotate "
         f"(f1, f2) or whole : {func_names_to_annotate}\n"
     )
-    # functions_to_annotate = "whole"
-    return functions_to_annotate
 
 
 def set_config_for_each_function(
@@ -703,13 +699,7 @@ def provide_user_with_service_type(each_func_name):
     # Input for Service Type
     mixture_pragma = "IaaS, FaaS, {IaaS, FaaS}(default)"
 
-    # func_service = input(
-    #     f"{each_func_name} configuration : " f"service type - {mixture_pragma}:\n "
-    # )
-
-    func_service = "FaaS"  # FIXME: for test -> comment later
-
-    return func_service
+    return "FaaS"
 
 
 def provide_user_with_memory_utilization(function_info):
@@ -830,17 +820,15 @@ def parse_and_save_info_for_each_function(whole_ast_info: WholeASTInfoClass):
                     merge_function=function_info.merge_function,
                 )
 
-            # fetch scaling policy for each function from user annotation
             else:
                 metrics_for_scaling_policy = function_info.function_metric_rules
 
                 metrics_dict = defaultdict(list)
 
                 # Add metrics with compare_operators
-                if metrics_for_scaling_policy.use_default_value_for_memory_util:
-                    pass
-
-                else:  # False means user annotation
+                if (
+                    not metrics_for_scaling_policy.use_default_value_for_memory_util
+                ):
                     metrics_dict["memory_util"].append(
                         metrics_for_scaling_policy.memory_util_operand
                     )
@@ -848,9 +836,9 @@ def parse_and_save_info_for_each_function(whole_ast_info: WholeASTInfoClass):
                         metrics_for_scaling_policy.memory_util_operator
                     )
 
-                if metrics_for_scaling_policy.use_default_value_for_cpu_util:
-                    pass
-                else:
+                if (
+                    not metrics_for_scaling_policy.use_default_value_for_cpu_util
+                ):
                     metrics_dict["cpu_util"].append(
                         metrics_for_scaling_policy.cpu_util_operand
                     )
@@ -858,10 +846,9 @@ def parse_and_save_info_for_each_function(whole_ast_info: WholeASTInfoClass):
                         metrics_for_scaling_policy.cpu_operator
                     )
 
-                if metrics_for_scaling_policy.use_default_value_for_arrival_rate:
-                    pass
-
-                else:
+                if (
+                    not metrics_for_scaling_policy.use_default_value_for_arrival_rate
+                ):
                     metrics_dict["arrival_rate"].append(
                         metrics_for_scaling_policy.arrival_rate_operand
                     )
@@ -952,13 +939,11 @@ def put_faas_pragma(beu_pragma_to_add, func_info_class):
         f"\n\t{beu_pragma_to_add} " f"{str(metrics_to_add).translate(translation)}\n\t"
     )
 
-    # Make or attach pragma to comment
-    comment_node = [
+    if comment_node := [
         child
         for child in ast.iter_child_nodes(func_info_class.ast_object)
         if isinstance(child, ast.Expr) and isinstance(child.value, ast.Str)
-    ]
-    if comment_node:
+    ]:
         comment_node[0].value.s = comment_node[0].value.s + beu_pragma_to_add + "\n\t"
     else:
         func_info_class.ast_object.body.insert(
@@ -971,12 +956,11 @@ def put_iaas_pragma(func_info_class, pragma_class):
     """
     Put IaaS Pragma -> No metrics needed
     """
-    comment_node = [
+    if comment_node := [
         child
         for child in ast.iter_child_nodes(func_info_class.ast_object)
         if isinstance(child, ast.Expr) and isinstance(child.value, ast.Str)
-    ]
-    if comment_node:
+    ]:
         comment_node[0].value.s = (
                 comment_node[0].value.s + pragma_class.vm_pragma + "\n\t"
         )
@@ -996,12 +980,6 @@ def put_pragma_comment_in_func(func_info_class: FunctionDefinition):
 
     if func_info_class.service_type_for_function.service_type == "IaaS":
         put_iaas_pragma(func_info_class, pragma_class)
-
-    if func_info_class.service_type_for_function.service_type in [
-        "FaaS",
-        "{IaaS, FaaS}",
-    ]:
-        pass
         # put_faas_pragma(pragma_class.lambda_pragma, func_info_class)
         # TODO: Comment above line since we are focusing on static phase
 
@@ -1074,9 +1052,9 @@ class ModuleConfigClass:
     bench_dir: str = "../BenchmarkApplication"
     module_dir: str = "import_modules"
     output_path_dir: str = "output"
-    lambda_code_dir_path: str = output_path_dir + "/lambda_codes"
-    deployment_zip_dir: str = output_path_dir + "/deployment_zip_dir"
-    hybrid_code_dir: str = output_path_dir + "/hybrid_vm"
+    lambda_code_dir_path: str = f"{output_path_dir}/lambda_codes"
+    deployment_zip_dir: str = f"{output_path_dir}/deployment_zip_dir"
+    hybrid_code_dir: str = f"{output_path_dir}/hybrid_vm"
     hybrid_code_file_name: str = "compiler_generated_hybrid_code"
     bucket_for_hybrid_code: str = "coco-hybrid-bucket-mj"
     bucket_for_lambda_handler_zip: str = "faas-code-deployment-bucket"
@@ -1483,8 +1461,6 @@ class ImportAndFunctionAnalyzer(ast.NodeVisitor):
         )
         self.whole_ast_info.objects_inside_if_main[child_node] = non_func_obj
         expr_value = child_node.value
-        if isinstance(expr_value, ast.Str):
-            pass
         for expr_value_child in ast.walk(expr_value):
             if isinstance(expr_value_child, ast.Name):
                 name_id = expr_value_child.id
@@ -1592,12 +1568,9 @@ def get_parameters_and_return_objects(node, specific_func_dict):
 
         # when number of return object is more than 2
         if isinstance(last_object_in_function.value, ast.Tuple):
-            return_objects = []
-            for each_object in last_object_in_function.value.elts:
-                return_objects.append(each_object)
+            return_objects = list(last_object_in_function.value.elts)
             specific_func_dict.return_objects = return_objects
 
-        # return object's number is 1
         elif isinstance(last_object_in_function.value, ast.Name):
             specific_func_dict.return_objects.append(last_object_in_function.value)
 
@@ -1615,10 +1588,9 @@ def get_assign_target_in_assign_objs(node: (ast.Assign, ast.AugAssign)):
 
             #  In case of tuple assignment e.g., a,b
             if isinstance(each_target, ast.Tuple):
-                for each_element in each_target.elts:
-                    assign_targets_list.append(each_element.id)
-
-            # In case of Subscript, e.g., a[3]
+                assign_targets_list.extend(
+                    each_element.id for each_element in each_target.elts
+                )
             elif isinstance(each_target, ast.Subscript):
                 # TODO: current is astor.to_source() but there must be better
                 # ways
@@ -1626,15 +1598,14 @@ def get_assign_target_in_assign_objs(node: (ast.Assign, ast.AugAssign)):
                     str(astor.to_source(each_target)).replace("\n", "")
                 )
 
-            #  In general case
             else:
                 assign_targets_list.append(each_target.id)
 
-    #  a += 3
     elif isinstance(node, ast.AugAssign):
         if isinstance(node.target, ast.Tuple):
-            for each_element in node.target.elts:
-                assign_targets_list.append(each_element.id)
+            assign_targets_list.extend(
+                each_element.id for each_element in node.target.elts
+            )
         else:
             assign_targets_list.append(node.target.id)
 
@@ -1693,7 +1664,7 @@ def make_lambda_func_for_default_group(
         original_func_info = function_information.get(each_func_name)
 
         # Change lambda function name
-        func_name = "lambda_handler_" + str(lambda_number_idx)
+        func_name = f"lambda_handler_{str(lambda_number_idx)}"
         function_args = get_default_lambda_function_inputs()
 
         # Get arguments for function parameters with a = event['a']
@@ -1801,9 +1772,9 @@ def make_lambda_func_for_lambda_group(
     # Get all the combination for switch case
     lambda_combination_list = []
     for i in range(len(sorted_func_info_list)):
-        for subset in itertools.combinations(sorted_func_info_list, i + 1):
-            lambda_combination_list.append(subset)
-
+        lambda_combination_list.extend(
+            iter(itertools.combinations(sorted_func_info_list, i + 1))
+        )
     # Make switch case for every subset of combinations
     if_statement_list = []
     lambda_input_per_if_statement = defaultdict()
@@ -1831,7 +1802,7 @@ def make_lambda_func_for_lambda_group(
             )
 
     lambda_handler = ast.FunctionDef(
-        name="lambda_handler_" + str(lambda_number_idx),
+        name=f"lambda_handler_{str(lambda_number_idx)}",
         args=get_default_lambda_function_inputs(),
         body=[func_with_params_assign_ast] + if_statement_list,
         decorator_list=[],
@@ -1845,7 +1816,7 @@ def make_lambda_func_for_lambda_group(
     logger.debug(astor.to_source(lambda_module))
 
     merged_lambda_info = MergedCompilerGeneratedLambda(
-        lambda_group_name="lambda_handler_" + str(lambda_number_idx),
+        lambda_group_name=f"lambda_handler_{str(lambda_number_idx)}",
         lambda_name_list=function_list,
         lambda_module=lambda_module,
         lambda_handler_func_object=lambda_handler,
@@ -2045,7 +2016,7 @@ def make_lambda_function_for_default_group(
     original_func_info = function_information.get(each_func_name)
 
     # Change lambda function name
-    func_name = "lambda_handler_" + str(lambda_number_idx)
+    func_name = f"lambda_handler_{str(lambda_number_idx)}"
     function_args = get_default_lambda_function_inputs()
 
     # Get arguments for function parameters with a = event['a']
@@ -2356,15 +2327,13 @@ def make_orchestrator_function() -> ast.FunctionDef:
 
     function_body = [upload_input_obj, invoke_function_and_download_output_to_vm]
 
-    final_function_obj = ast.FunctionDef(
+    return ast.FunctionDef(
         name=function_name,
         args=function_args_field_obj,
         body=function_body,
         decorator_list=[],
         returns=None,
     )
-
-    return final_function_obj
 
 
 def invoke_func_for_expr_obj():
@@ -2494,7 +2463,7 @@ def return_function_args_object():
         ast.NameConstant(value=False),
         ast.NameConstant(value=False),
     ]
-    function_field_args = ast.arguments(
+    return ast.arguments(
         args=function_parameters,
         vararg=None,
         kwonlyargs=[],
@@ -2502,8 +2471,6 @@ def return_function_args_object():
         kwarg=None,
         defaults=function_parameters_default_value,
     )
-
-    return function_field_args
 
 
 def make_for_object_of_uploading_input_to_s3():
@@ -2570,23 +2537,25 @@ def return_func_call_arguments(function_return_objects) -> List[ast.keyword]:
             arg="download_output_from_s3", value=ast.NameConstant(value=True)
         )
 
-        args_keywords = [
+        return [
             ast.keyword(arg="assign_obj", value=ast.NameConstant(value=True)),
-            ast.keyword(arg="input_to_s3", value=ast.NameConstant(value=False)),
+            ast.keyword(
+                arg="input_to_s3", value=ast.NameConstant(value=False)
+            ),
             ast_keyword_for_download_output_from_s3,
         ]
-        return args_keywords
     else:
         ast_keyword_for_download_output_from_s3 = ast.keyword(
             arg="download_output_from_s3", value=ast.NameConstant(value=False)
         )
 
-        args_keywords = [
+        return [
             ast.keyword(arg="expr_obj", value=ast.NameConstant(value=True)),
-            ast.keyword(arg="input_to_s3", value=ast.NameConstant(value=False)),
+            ast.keyword(
+                arg="input_to_s3", value=ast.NameConstant(value=False)
+            ),
             ast_keyword_for_download_output_from_s3,
         ]
-        return args_keywords
 
     # ast_keyword_for_download_output_from_s3 = ast.keyword(
     #     arg="download_output_from_s3", value=ast.NameConstant(value=False)
@@ -2616,7 +2585,7 @@ def change_func_call_for_default_lambda_group(
     # Make dictionary for function parameters - {'a' : a},
     # invoke_function_using_lambda('resize', {'img_file_name':a)
     str_obj_of_call_func_params, name_obj_of_call_func_params = [], []
-    for idx, each_argument in enumerate(func_call_obj.args):
+    for each_argument in func_call_obj.args:
         name_obj_of_call_func_params.append(each_argument)
         str_obj_of_call_func_params.append(each_argument.id)
 
@@ -2650,20 +2619,14 @@ def output_dependency(copied_func_call, whole_ast_info):
     each_function_call: FunctionCallInfo
     for _, each_function_call in whole_ast_info.function_call_info_class.items():
 
-        # get function call input parameters and call object
-        function_call_input_list = [i.id for i in each_function_call.call_func_params]
-
-        # fetch func call object
-        calling_obj_from_each_function_call = each_function_call.callee_object
-
-        # check if function calls are in the same function callee object
         if callee_func_name == each_function_call.caller_object_name:
-
-            # check if assign target of copied_func_call is used other function calls
+            # get function call input parameters and call object
+            function_call_input_list = [i.id for i in each_function_call.call_func_params]
 
             if set(assign_node_target_list).intersection(set(function_call_input_list)):
+                # fetch func call object
+                calling_obj_from_each_function_call = each_function_call.callee_object
 
-                # check if line number for ordering -
                 if call_obj.lineno < calling_obj_from_each_function_call.lineno:
                     for each_keyword in call_obj.keywords:
                         if each_keyword.arg == "download_output_from_s3":
@@ -2685,15 +2648,12 @@ def input_dependency(copied_func_call, whole_ast_info):
     each_function_call: FunctionCallInfo
     for _, each_function_call in whole_ast_info.function_call_info_class.items():
 
-        if each_function_call.object_type == "Assign":
-
-            assign_targets = each_function_call.assign_targets
-
-            calling_obj_from_each_function_call = each_function_call.callee_object
-
-            if callee_func_name == each_function_call.caller_object_name:
+        if callee_func_name == each_function_call.caller_object_name:
+            if each_function_call.object_type == "Assign":
+                assign_targets = each_function_call.assign_targets
 
                 if set(assign_targets).intersection(set(call_func_parameters_name)):
+                    calling_obj_from_each_function_call = each_function_call.callee_object
 
                     if call_obj.lineno > calling_obj_from_each_function_call.lineno:
                         for each_keyword in call_obj.keywords:
