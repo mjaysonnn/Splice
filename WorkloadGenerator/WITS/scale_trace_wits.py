@@ -92,7 +92,7 @@ def main():
 
     duration_to_configure = int(SECONDS_DURATION / 60)
     logger.info(f"Cut to {duration_to_configure} minutes")
-    df_configured_duration = df_scaled.iloc[0:SECONDS_DURATION]
+    df_configured_duration = df_scaled.iloc[:SECONDS_DURATION]
     df_configured_duration.index = df_configured_duration.index + 1
     logger.info(f"Describe : \n{df_configured_duration.describe()}")
     logger.info(f"Shape : {df_configured_duration.shape}\n")
@@ -100,25 +100,25 @@ def main():
     average_req_for_60 = int(df_configured_duration['Req'].mean())
 
     logger.info("Cut to 30 minutes")
-    df_30_mins = df_configured_duration.iloc[0:1800]
+    df_30_mins = df_configured_duration.iloc[:1800]
     # df_30_mins.index = df_30_mins.index + 1
     logger.info(f"Describe : \n{df_30_mins.describe()}")
     logger.info(f"Shape : {df_30_mins.shape}\n")
 
     logger.info("Cut to 30 minutes")
-    df_20_mins = df_configured_duration.iloc[0:1200]
+    df_20_mins = df_configured_duration.iloc[:1200]
     # df_30_mins.index = df_30_mins.index + 1
     logger.info(f"Describe : \n{df_20_mins.describe()}")
     logger.info(f"Shape : {df_20_mins.shape}\n")
 
     logger.info("Cut to 10 minutes")
-    df_10_mins = df_configured_duration.iloc[0:600]
+    df_10_mins = df_configured_duration.iloc[:600]
     # df_10_mins.index = df_10_mins.index + 1
     logger.info(f"Describe : \n{df_10_mins.describe()}")
     logger.info(f"Shape : {df_10_mins.shape}\n")
 
     logger.info("Cut to 5 minutes")
-    df_5_minutes = df_configured_duration.iloc[0:300]
+    df_5_minutes = df_configured_duration.iloc[:300]
     # df_5_minutes.index = df_5_minutes.index + 1
     logger.info(f"Describe : \n{df_5_minutes.describe()}")
     logger.info(f"Shape : {df_5_minutes.shape}\n")

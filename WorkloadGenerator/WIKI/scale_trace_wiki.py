@@ -92,7 +92,7 @@ def main():
 
     duration_to_configure = int(SECONDS_DURATION / 60)
     logger.info(f"Cut to {duration_to_configure} minutes")
-    df_configured_duration = df_scaled.iloc[0:SECONDS_DURATION]
+    df_configured_duration = df_scaled.iloc[:SECONDS_DURATION]
     df_configured_duration.index = df_configured_duration.index + 1
     logger.info(f"Describe : \n{df_configured_duration.describe()}")
     logger.info(f"Shape : {df_configured_duration.shape}\n")

@@ -38,6 +38,7 @@ FILES
 
 """
 
+
 import asyncio
 import csv
 import datetime
@@ -147,12 +148,8 @@ INDEX_FOR_STOPPING_SCALING_POLICY = False
 CPU_IDLE_PERCENT = 10
 
 if USE_CASE_FOR_EXPERIMENT in USE_CASE_FOR_EXPERIMENTS:
-    if USE_CASE_FOR_EXPERIMENT == "COLD_START":
-        INPUT_CSV = "cold_start.csv"
+    if USE_CASE_FOR_EXPERIMENT == "ALL_LAMBDA":
         REQUEST_TYPE = "lambda"
-
-        # PROVISIONING_METHOD = "ONLY_VM"
-        # OVER_PROVISION = False
         INDEX_FOR_STOPPING_SCALING_POLICY = True
 
     elif USE_CASE_FOR_EXPERIMENT == "ALL_VM":
@@ -160,14 +157,18 @@ if USE_CASE_FOR_EXPERIMENT in USE_CASE_FOR_EXPERIMENTS:
         PROVISIONING_METHOD = "ONLY_VM"
         OVER_PROVISION = False
 
+    elif USE_CASE_FOR_EXPERIMENT == "COLD_START":
+        INPUT_CSV = "cold_start.csv"
+        REQUEST_TYPE = "lambda"
+
+        # PROVISIONING_METHOD = "ONLY_VM"
+        # OVER_PROVISION = False
+        INDEX_FOR_STOPPING_SCALING_POLICY = True
+
     elif USE_CASE_FOR_EXPERIMENT == "OVERPROVISION":
         REQUEST_TYPE = "vm"
         PROVISIONING_METHOD = "ONLY_VM"
         OVER_PROVISION = True
-
-    elif USE_CASE_FOR_EXPERIMENT == "ALL_LAMBDA":
-        REQUEST_TYPE = "lambda"
-        INDEX_FOR_STOPPING_SCALING_POLICY = True
 
     elif USE_CASE_FOR_EXPERIMENT == "SPLICE":
         REQUEST_TYPE = "vm"
@@ -248,6 +249,8 @@ class InstanceInfoWithCPUClass:
     cpu_util: float
 
 
+
+
 @dataclass
 class LoadBalancerConfigClass:
     # Instance Configuration
@@ -267,7 +270,7 @@ class LoadBalancerConfigClass:
     # LoadBalancer Configuration
     balancer_ip_addr: str = BALANCER_EC2_IP
     balancer_id: str = BALANCER_ID
-    balancer_ip_addr_with_port: str = balancer_ip_addr + ":26590"
+    balancer_ip_addr_with_port: str = f"{balancer_ip_addr}:26590"
     balancer_label: str = "LoadBalancer"
     basic_status_url: str = "/basic_status"
 
@@ -282,6 +285,9 @@ class LoadBalancerConfigClass:
     # baseline: int = 80
     # avail_zone: str = ""
     # logfile: str = ""
+
+
+
 
 
 @dataclass
@@ -302,13 +308,14 @@ class ModuleConfigClass:
     bench_dir: str = "../BenchmarkApplication/resnet18"
     module_dir: str = "import_modules"
     output_path_dir: str = "output"
-    lambda_code_dir_path: str = output_path_dir + "/lambda_codes"
-    deployment_zip_dir: str = output_path_dir + "/deployment_zip_dir"
-    hybrid_code_dir: str = output_path_dir + "/hybrid_vm"
+    lambda_code_dir_path: str = f"{output_path_dir}/lambda_codes"
+    deployment_zip_dir: str = f"{output_path_dir}/deployment_zip_dir"
+    hybrid_code_dir: str = f"{output_path_dir}/hybrid_vm"
     hybrid_code_file_name: str = "compiler_generated_hybrid_code"
     bucket_for_hybrid_code: str = "coco-hybrid-bucket-mj"
     bucket_for_lambda_handler_zip: str = "faas-code-deployment-bucket"
     # log_folder_dir: str = "coco-hybrid-bucket"
+
 
 
 # Fetch Compiler module configuration
@@ -387,7 +394,7 @@ def get_initial_request() -> int:
 
     lb_ip_addr = lb_conf.balancer_ip_addr
     basic_status = lb_conf.basic_status_url
-    url_to_request = "http://" + lb_ip_addr + basic_status
+    url_to_request = f"http://{lb_ip_addr}{basic_status}"
 
     with requests.Session() as s:
         try:
@@ -505,15 +512,15 @@ def make_servers_unavailable(worker_info_dict):
 
     logger.info("\tMake each server unavailable")
 
-    exception_str = (
-        "Inconsistency with loadbalancer configuration "
-        "-> remove or overwrite json file"
-    )
-
     # logger.debug(f"\t{worker_info_dict}")
     # logger.debug(f"\t{worker_ids}")
 
     if worker_info_dict:
+        exception_str = (
+            "Inconsistency with loadbalancer configuration "
+            "-> remove or overwrite json file"
+        )
+
         for each_worker_url, worker_data in worker_info_dict.items():
 
             # logger.debug(each_worker_url)
@@ -535,13 +542,13 @@ def post_request_to_make_server_unavailable(
         each_worker_url, exception_str, worker_data
 ):
     # logger.debug(each_worker_url)
-    uri = "/servers/" + each_worker_url + "/edit"
+    uri = f"/servers/{each_worker_url}/edit"
     url = lb_conf.balancer_ip_addr_with_port + uri
 
     with requests.session() as sess:
 
         try:
-            res = sess.post(url="http://" + url, timeout=3, data=worker_data)
+            res = sess.post(url=f"http://{url}", timeout=3, data=worker_data)
 
         except TimeoutError as e:
             logger.info(f"\t Exception {e} -> due to previous one")
@@ -625,11 +632,8 @@ def terminate_previous_instances(inst_id_list=None):
 
                 if not inst_id_list:
                     terminate_instance(each_inst_id, "us-east-1")
-                else:
-                    if each_inst_id in inst_id_list:
-                        logger.info(f"\tSkip Initial Instance - {each_inst_id}")
-                        continue
-
+                elif each_inst_id in inst_id_list:
+                    logger.info(f"\tSkip Initial Instance - {each_inst_id}")
         if not response["Reservations"]:
             raise ValueError
 
@@ -690,8 +694,8 @@ def update_worker_attribute(
         remove_worker=False,
 ):
     def get_uri_for_edit(w_id):
-        uri = "/servers/" + w_id + "/edit"
-        url = "http://" + balancer_ip_addr_with_port + uri
+        uri = f"/servers/{w_id}/edit"
+        url = f"http://{balancer_ip_addr_with_port}{uri}"
         return url
 
     if attr_dict is None:
@@ -703,9 +707,9 @@ def update_worker_attribute(
         info_for_server = attr_dict
 
         if hybrid_code:
-            info_for_server["label"] = vm.get_instance_id() + "_5001"
+            info_for_server["label"] = f"{vm.get_instance_id()}_5001"
         else:
-            info_for_server["label"] = vm.get_instance_id() + "_5000"
+            info_for_server["label"] = f"{vm.get_instance_id()}_5000"
 
         info_for_server["settings.vmtype"] = "ondemand"
         info_for_server["settings.weight"] = vm.get_weight()
@@ -713,7 +717,7 @@ def update_worker_attribute(
         assert response.status_code == 200
         vm.add_data_to_data_per_flask_id(dict(info_for_server))
 
-        # 0 is vm , 1 is hybrid
+            # 0 is vm , 1 is hybrid
     elif offload_worker:
 
         address_for_editing = get_uri_for_edit(vm.return_worker_id_list()[1])  # address_for_editing for server with VM
@@ -1023,13 +1027,15 @@ class LBDetacher(threading.Thread):
         self.vm = vm
 
     def run(self):
-        logger.info("\tStart Removing instance {} from LB: ".format(self.vm.get_instance_id()))
+        logger.info(f"\tStart Removing instance {self.vm.get_instance_id()} from LB: ")
         turn_off_worker(lb_conf.balancer_ip_addr_with_port, self.vm)
-        logger.info("\tFinished Removing instance {} from LB: ".format(self.vm.get_instance_id()))
+        logger.info(
+            f"\tFinished Removing instance {self.vm.get_instance_id()} from LB: "
+        )
 
-        logger.info("\tStart terminating instance {}".format(self.vm.get_instance_id()))
+        logger.info(f"\tStart terminating instance {self.vm.get_instance_id()}")
         terminate_instance(self.vm.get_instance_id(), lb_conf.region_name)
-        logger.info("\tFinished terminating instance {}".format(self.vm.get_instance_id()))
+        logger.info(f"\tFinished terminating instance {self.vm.get_instance_id()}")
 
 
 def add_worker_to_lb(balancer_id, lb_address, vm):
@@ -1044,12 +1050,12 @@ def add_worker_to_lb(balancer_id, lb_address, vm):
     # Port number
     port_number = 5000
 
-    address_for_new_server = "/balancers/" + balancer_id + "/servers/new"
+    address_for_new_server = f"/balancers/{balancer_id}/servers/new"
 
-    full_address_for_new_server = "http://" + lb_address + address_for_new_server
+    full_address_for_new_server = f"http://{lb_address}{address_for_new_server}"
 
     info_for_server = defaultdict()
-    info_for_server["settings.address"] = vm.get_instance_ip() + ":" + str(port_number)
+    info_for_server["settings.address"] = f"{vm.get_instance_ip()}:{port_number}"
     info_for_server["label"] = vm.get_instance_id()
 
     # make request of making new server
@@ -1244,12 +1250,7 @@ async def send_req(session, num=0, arrive_time=0, num_of_tasks=0, total_reqs=0, 
                 # Wait for result
                 result = await resp.text()
 
-                request_type = "vm"
-
-                # logger.info(result)
-                if "Lambda" in result.split(" "):
-                    request_type = "lambda"
-
+                request_type = "lambda" if "Lambda" in result.split(" ") else "vm"
                 # Get duration
                 end = time.time()
                 duration = float((end - start) * 1000)
@@ -1265,7 +1266,7 @@ async def send_req(session, num=0, arrive_time=0, num_of_tasks=0, total_reqs=0, 
                         f"violations - {NUMBER_OF_VIOLATION}"
                     )
 
-                elif float(duration) >= SLO_CRITERIA:
+                elif duration >= SLO_CRITERIA:
                     NUMBER_OF_VIOLATION += 1
                     VIOLATED_DURATIONS.append(duration)
                     # Info Result
@@ -1290,7 +1291,7 @@ async def send_req(session, num=0, arrive_time=0, num_of_tasks=0, total_reqs=0, 
                 assert resp.status == 200
 
         except asyncio.TimeoutError:
-            logger.info(f"Exception -> Timeout Error")
+            logger.info("Exception -> Timeout Error")
 
             # Get duration for this exceptional case
             end = time.time()
@@ -1332,7 +1333,7 @@ async def send_req(session, num=0, arrive_time=0, num_of_tasks=0, total_reqs=0, 
 
 
 # For Retry ClientSession
-statuses = {x for x in range(100, 600)}
+statuses = set(range(100, 600))
 statuses.remove(200)
 statuses.remove(429)
 
@@ -1395,15 +1396,14 @@ async def run_workload():
                 total_requests += num_tasks
 
                 # Actual Work - Send Parallel Request
-                for i in range(num_tasks):
-                    async_job.append(
-                        asyncio.create_task(
-                            send_req(
-                                session, i, arrival_time, num_tasks, total_requests
-                            )
+                async_job.extend(
+                    asyncio.create_task(
+                        send_req(
+                            session, i, arrival_time, num_tasks, total_requests
                         )
                     )
-
+                    for i in range(num_tasks)
+                )
                 # For reading csv every second
                 await asyncio.sleep(1)
 
@@ -1426,7 +1426,7 @@ def get_number_of_requests_during_1_minute(balancer_ip_address, port_num=80):
     Will return number of requests during a minute
     """
     # getting through nginx server to get current request
-    address_to_req = ("http://" + balancer_ip_address + ":" + str(port_num) + lb_conf.basic_status_url)
+    address_to_req = f"http://{balancer_ip_address}:{str(port_num)}{lb_conf.basic_status_url}"
 
     # set timeout to 2
     try:
@@ -1480,11 +1480,11 @@ def remove_workers(instances_with_elapsed_mins: List[InstanceInfoWithCPUClass], 
 
     logger.info(f"\t\tinstances_to_terminate -> {instances_to_terminate}")
 
+    # Thread keepers
+    lb_detachers_threads = []
+
     # Number of servers to remove should be less than existing servers
     if num_of_servers_to_terminate < len(WHOLE_INSTANCE_INFO):
-
-        # Thread keepers
-        lb_detachers_threads = []
 
         for each_inst_id in instances_to_terminate:
             # For Consistency
@@ -1529,13 +1529,9 @@ def remove_workers(instances_with_elapsed_mins: List[InstanceInfoWithCPUClass], 
         logger.info(f"\tCurrent Instances Info ({len(WHOLE_INSTANCE_INFO)}) instances:"
                     f" {pformat(WHOLE_INSTANCE_INFO)}")
 
-    elif num_of_servers_to_terminate >= len(WHOLE_INSTANCE_INFO):
-
+    else:
         logger.info(f"\t\tWorkers number cannot be less than resources that are to be removed")
         logger.info(f"\t\tLeaving only one worker")
-
-        # Thread keepers
-        lb_detachers_threads = []
 
         for each_inst_id in list(WHOLE_INSTANCE_INFO.keys())[1:]:
             # For Consistency
@@ -1610,11 +1606,7 @@ def determine_num_of_excess_servers(num_of_requests, num_of_vm, arrival_rate, du
 
         # Divide with arrival rate to get number of servers====
         logger.info("\t[SCALING POLICY] - SPLICE")
-        num_of_servers_to_launch = math.ceil(total_excess / (arrival_rate * duration))
-
-        return num_of_servers_to_launch
-
-    # Since there is a time for launching instances we have to calculate the gap
+        return math.ceil(total_excess / (arrival_rate * duration))
     elif USE_CASE_FOR_EXPERIMENT in ["ALL_VM", "OVERPROVISION"]:
 
         # Add partial requests for newly launched instances + Add requests for remaining numbers
@@ -1633,21 +1625,14 @@ def determine_num_of_excess_servers(num_of_requests, num_of_vm, arrival_rate, du
             # Number of servers to use -> could be positive or negative number
             num_of_servers_to_make = math.ceil(total_excess / (arrival_rate * duration))
 
-            if num_of_servers_to_make >= 0:
-                num_of_servers_to_launch = 2 * num_of_servers_to_make
-                return num_of_servers_to_launch
-
-            # If removing workers or no provision necessary
-            elif num_of_servers_to_make < 0:
-                num_of_servers_to_launch = num_of_servers_to_make
-                return num_of_servers_to_launch
-
-        # NO OVER_PROVISION
-        elif not OVER_PROVISION:
+            return (
+                2 * num_of_servers_to_make
+                if num_of_servers_to_make >= 0
+                else num_of_servers_to_make
+            )
+        else:
             logger.info("\t\t\t[SCALING POLICY] - NO OVERPROVISION ")
-            num_of_servers_to_launch = math.ceil(total_excess / (arrival_rate * duration))
-
-            return num_of_servers_to_launch
+            return math.ceil(total_excess / (arrival_rate * duration))
 
     logger.info("\t\tFinished determine_num_of_excess_servers")
 
@@ -1692,11 +1677,9 @@ def get_maximum_requests_for_vms(arrival_rate, duration, num_of_vm):
             # Exception -> When Value is 1
             if gap_in_seconds is None:
                 prev_inst_to_add = PreviouslyLaunchedInstancesClass(inst_id, info.running_time, 0)
-                previously_launched_instances_list.append(prev_inst_to_add)
-
             else:
                 prev_inst_to_add = PreviouslyLaunchedInstancesClass(inst_id, info.running_time, gap_in_seconds)
-                previously_launched_instances_list.append(prev_inst_to_add)
+            previously_launched_instances_list.append(prev_inst_to_add)
 
             logger.info(f"\t\t\tpreviously_launched_instances_list with gap : {previously_launched_instances_list}")
 
@@ -1704,7 +1687,9 @@ def get_maximum_requests_for_vms(arrival_rate, duration, num_of_vm):
             logger.info(f"\t\t\t{i + 1}th instance - Not Previous Instances")
 
     # Reqs for previous instances -> gaps * arrival rate, since gaps is for one minute
-    req_for_previous_instances = arrival_rate * (sum([i.gap_in_seconds for i in previously_launched_instances_list]))
+    req_for_previous_instances = arrival_rate * sum(
+        i.gap_in_seconds for i in previously_launched_instances_list
+    )
     logger.info(f"\t\t\treq_for_previous_instances : {req_for_previous_instances}")
 
     # Reqs for remaining instances
@@ -2093,7 +2078,7 @@ def arrival_rate_decision(metrics_from_lb, arrival_rate) -> bool:
 
 
 def copy_result_log():
-    logger.info(f"Copying result")
+    logger.info("Copying result")
 
     # Copy all the logging
     log_folder = module_conf.result_logfile_folder
@@ -2162,16 +2147,16 @@ def get_instances_to_scale_in(whole_inst_info: dict, lowest=False) -> List[Insta
 
     global WHOLE_INSTANCE_INFO
 
+    instances_to_scale_in = []
+
+    # Iterate over all instances
+    inst_info: InstanceInfoClass
     # Bring all instances with sorted lowest cpu util
     if lowest:
         logger.info(f"\t\tSort instances from lowest cpu to highest cpu")
 
-        instances_to_scale_in = []
-
         client = boto3.client("cloudwatch", **CREDENTIALS, region_name="us-east-1")
 
-        # Iterate over all instances
-        inst_info: InstanceInfoClass
         for i, (instance_id, inst_info) in enumerate(whole_inst_info.items()):
 
             # Get number of elapsed minutes
@@ -2215,24 +2200,16 @@ def get_instances_to_scale_in(whole_inst_info: dict, lowest=False) -> List[Insta
                     logger.info(f"\t\t\t\t\tAppending {i + 1}th Instance {instance_id} to list")
                     instances_to_scale_in.append(instance_with_cpu)
 
-            elif number_of_elapsed_minutes < 3:
+            else:
                 logger.info(f"\t\t\t\t\t{i + 1}th Instance {instance_id}'s elapsed time is less than 3 ")
 
         # Sort List depending on the cpu util
         instances_to_scale_in = sorted(instances_to_scale_in, key=lambda x: x.cpu_util)
-        return instances_to_scale_in
-
-    #  Fetch instances with cpu util less than 10 percent of total cpu
-    elif not lowest:
-
+    else:
         logger.info(f"\tFind instances to scale in when idle - Case when num of excess servers is 0")
-
-        instances_to_scale_in = []
 
         client = boto3.client("cloudwatch", **CREDENTIALS, region_name="us-east-1")
 
-        # Iterate over all instances
-        inst_info: InstanceInfoClass
         for i, (instance_id, inst_info) in enumerate(whole_inst_info.items()):
 
             # Get number of elapsed minutes
@@ -2281,10 +2258,10 @@ def get_instances_to_scale_in(whole_inst_info: dict, lowest=False) -> List[Insta
                     else:
                         logger.info(f"\t\t{i + 1}th Instance {instance_id}'s cpu util is greater than 10")
 
-            elif number_of_elapsed_minutes < 3:
+            else:
                 logger.info(f"\t\t{i + 1}th Instance {instance_id}'s elapsed time is less than 3 ")
 
-        return instances_to_scale_in
+    return instances_to_scale_in
 
 
 def fetch_instance_info():
